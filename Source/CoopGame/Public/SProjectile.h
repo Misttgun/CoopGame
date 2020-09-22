@@ -41,7 +41,7 @@ protected:
 	FTimerHandle ExplosionTimerHandle;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-		TSubclassOf<UDamageType> DamageType;
+	TSubclassOf<UDamageType> DamageType;
 
 	UFUNCTION()
 	void Explode();

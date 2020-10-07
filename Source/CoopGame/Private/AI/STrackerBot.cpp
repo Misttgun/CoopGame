@@ -48,8 +48,11 @@ void ASTrackerBot::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Find initial move to
-	NextPathPoint = GetNextPathPoint();
+	if(Role == ROLE_Authority)
+	{
+		// Find initial move to
+		NextPathPoint = GetNextPathPoint();
+	}
 }
 
 void ASTrackerBot::HandleTakeDamage(USHealthComponent* OwningHealthComp, float Health, float HealthDelta, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser)
@@ -93,6 +96,14 @@ void ASTrackerBot::SelfDestruct()
 
 	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ExplosionEffect, GetActorLocation());
 
+	UGameplayStatics::PlaySoundAtLocation(this, ExplodeSound, GetActorLocation());
+
+	MeshComp->SetVisibility(false, true);
+	MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	if(Role != ROLE_Authority)
+		return;
+
 	TArray<AActor*> IgnoredActors;
 	IgnoredActors.Add(this);
 
@@ -101,10 +112,7 @@ void ASTrackerBot::SelfDestruct()
 
 	DrawDebugSphere(GetWorld(), GetActorLocation(), ExplosionRadius, 12, FColor::Red, false, 2.0f, 0, 1.0f);
 
-	UGameplayStatics::PlaySoundAtLocation(this, ExplodeSound, GetActorLocation());
-
-	// Destroy actor immediately
-	Destroy();
+	SetLifeSpan(2.0f);
 }
 
 void ASTrackerBot::DamageSelf()
@@ -116,6 +124,10 @@ void ASTrackerBot::DamageSelf()
 void ASTrackerBot::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if(Role != ROLE_Authority || bExploded)
+		return;
+
 
 	float DistanceToTarget = (GetActorLocation() - NextPathPoint).Size();
 
@@ -137,13 +149,16 @@ void ASTrackerBot::Tick(float DeltaTime)
 
 void ASTrackerBot::NotifyActorBeginOverlap(AActor* OtherActor)
 {
-	if (!bStartedSelfDestruction)
+	if (!bStartedSelfDestruction && !bExploded)
 	{
 		ASCharacter* PlayerPawn = Cast<ASCharacter>(OtherActor);
 		if (PlayerPawn)
 		{
-			// Start self destruction sequence
-			GetWorldTimerManager().SetTimer(TimerHandle_SelfDamage, this, &ASTrackerBot::DamageSelf, SelfDamageInterval, true, 0.0f);
+			if(Role == ROLE_Authority)
+			{
+				// Start self destruction sequence
+				GetWorldTimerManager().SetTimer(TimerHandle_SelfDamage, this, &ASTrackerBot::DamageSelf, SelfDamageInterval, true, 0.0f);
+			}
 
 			bStartedSelfDestruction = true;
 
